@@ -197,16 +197,18 @@ app.post('/webhook', upload.none(), async (req, res) => {
         // Step 2: Format and create order lines
         const odooOrderLines = [];
         for (const product of products) {
-            const formattedName = product.productOptions?.length > 0
-                ? `${product.productName} (${product.productOptions.join(', ')})`
-                : product.productName;
-
-            const productId = await findOrCreateProduct(formattedName, product.unitPrice);
+            // const formattedName = product.productOptions?.length > 0
+            //     ? `${product.productName} (${product.productOptions.join(', ')})`
+            //     : product.productName;
+            
+            // const productId = await findOrCreateProduct(formattedName, product.unitPrice);
+            const productId = await findOrCreateProduct(product.productName, product.unitPrice);
 
             odooOrderLines.push([
                 0, 0, {
                     product_id: productId,
-                    name: formattedName,
+                    // name: formattedName,
+                    name: product.productName,
                     product_uom_qty: product.quantity,
                     price_unit: product.unitPrice
                 }
