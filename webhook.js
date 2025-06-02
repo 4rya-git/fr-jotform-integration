@@ -44,10 +44,11 @@ async function createOrFindCustomer(customerName, customerEmail, contactNumber, 
             if (ids.length) return resolve(ids[0]);
 
             // Get country ID
+            const countryName = billing.country || 'France';
             object.methodCall('execute_kw', [
                 ODOO_DB, uid, ODOO_PASSWORD,
                 'res.country', 'search',
-                [[['name', '=', billing.country || '']]] // Use provided country name
+                [[['name', '=', countryName]]] // Use provided country name
             ], (err, countryIds) => {
                 if (err) return reject(err);
                 if (!countryIds.length) return reject(new Error('Country not found'));
@@ -101,7 +102,7 @@ async function createOrFindCustomer(customerName, customerEmail, contactNumber, 
                             city: billing.city || '',
                             zip: billing.postal || '',
                             country_id: countryId,
-                            state_id: stateId // null if no state provided
+                            state_id: stateId || null // null if no state provided
                         }]
                     ], (err, newId) => {
                         if (err) return reject(err);
@@ -146,14 +147,15 @@ async function findOrCreateProduct(productName, price) {
 }
 
 // Helper function to create a sale order
-async function createSaleOrder(customerId, orderLines) {
+async function createSaleOrder(customerId, orderLines, note) {
     return new Promise((resolve, reject) => {
         object.methodCall('execute_kw', [
             ODOO_DB, uid, ODOO_PASSWORD,
             'sale.order', 'create',
             [{
                 partner_id: customerId,
-                order_line: orderLines
+                order_line: orderLines,
+                note: note
             }]
         ], (err, id) => {
             if (err) return reject(err);
@@ -186,6 +188,7 @@ app.post('/webhook', upload.none(), async (req, res) => {
         const customerEmail = rawRequest.q23_email || `${Date.now()}@noemail.com`;
         const contactNumber = rawRequest.q19_phoneNumber?.full || '';
         const billing = rawRequest.q21_deliveryAddress || {};
+        const customerNote = rawRequest.q22_commentsplease || '';
 
         if (products.length === 0) {
             throw new Error('No products found in the form submission');
@@ -216,7 +219,7 @@ app.post('/webhook', upload.none(), async (req, res) => {
         }
 
         // Step 3: Create and confirm sale order
-        const saleOrderId = await createSaleOrder(customerId, odooOrderLines);
+        const saleOrderId = await createSaleOrder(customerId, odooOrderLines, customerNote);
         await confirmSaleOrder(saleOrderId);
 
         res.status(200).json({
