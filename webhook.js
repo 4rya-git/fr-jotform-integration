@@ -34,6 +34,7 @@ common.methodCall('authenticate', [ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD, {}], (
 // Helper function to create or find a customer
 async function createOrFindCustomer(customerName, customerEmail, contactNumber, billing) {
     return new Promise((resolve, reject) => {
+        // Search for existing customer by email
         object.methodCall('execute_kw', [
             ODOO_DB, uid, ODOO_PASSWORD,
             'res.partner', 'search',
@@ -42,27 +43,76 @@ async function createOrFindCustomer(customerName, customerEmail, contactNumber, 
             if (err) return reject(err);
             if (ids.length) return resolve(ids[0]);
 
-            // Customer doesn't exist, create a new one
+            // Get country ID
             object.methodCall('execute_kw', [
                 ODOO_DB, uid, ODOO_PASSWORD,
-                'res.partner', 'create',
-                [{
-                    name: customerName,
-                    email: customerEmail,
-                    phone: contactNumber,
-                    street: billing.addr_line1 || '',
-                    street2: billing.addr_line2 || '',
-                    city: billing.city || '',
-                    zip: billing.postal || '',
-                    country_id: null // You may need to map country names to IDs
-                }]
-            ], (err, newId) => {
+                'res.country', 'search',
+                [[['name', '=', billing.country || '']]] // Use provided country name
+            ], (err, countryIds) => {
                 if (err) return reject(err);
-                resolve(newId);
+                if (!countryIds.length) return reject(new Error('Country not found'));
+
+                const countryId = countryIds[0];
+
+                // Get state ID (if provided)
+                let stateId = null;
+                if (billing.state) {
+                    object.methodCall('execute_kw', [
+                        ODOO_DB, uid, ODOO_PASSWORD,
+                        'res.country.state', 'search',
+                        [[['name', '=', billing.state], ['country_id', '=', countryId]]]
+                    ], (err, stateIds) => {
+                        if (err) return reject(err);
+                        if (stateIds.length) {
+                            stateId = stateIds[0];
+                        }
+
+                        // Create new customer
+                        object.methodCall('execute_kw', [
+                            ODOO_DB, uid, ODOO_PASSWORD,
+                            'res.partner', 'create',
+                            [{
+                                name: customerName,
+                                email: customerEmail,
+                                phone: contactNumber,
+                                street: billing.addr_line1 || '',
+                                street2: billing.addr_line2 || '',
+                                city: billing.city || '',
+                                zip: billing.postal || '',
+                                country_id: countryId,
+                                state_id: stateId // Set state ID if found
+                            }]
+                        ], (err, newId) => {
+                            if (err) return reject(err);
+                            resolve(newId);
+                        });
+                    });
+                } else {
+                    // Create new customer without state
+                    object.methodCall('execute_kw', [
+                        ODOO_DB, uid, ODOO_PASSWORD,
+                        'res.partner', 'create',
+                        [{
+                            name: customerName,
+                            email: customerEmail,
+                            phone: contactNumber,
+                            street: billing.addr_line1 || '',
+                            street2: billing.addr_line2 || '',
+                            city: billing.city || '',
+                            zip: billing.postal || '',
+                            country_id: countryId,
+                            state_id: stateId // null if no state provided
+                        }]
+                    ], (err, newId) => {
+                        if (err) return reject(err);
+                        resolve(newId);
+                    });
+                }
             });
         });
     });
 }
+
 
 // Helper function to create or find a product
 async function findOrCreateProduct(productName, price) {
