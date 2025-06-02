@@ -188,7 +188,7 @@ app.post('/webhook', upload.none(), async (req, res) => {
         const customerEmail = rawRequest.q23_email || `${Date.now()}@noemail.com`;
         const contactNumber = rawRequest.q19_phoneNumber?.full || '';
         const billing = rawRequest.q21_deliveryAddress || {};
-        const customerNote = rawRequest.q22_commentsplease || '';
+        const customerNote = `Customer Comments: ${rawRequest.q22_commentsplease}` || '';
 
         if (products.length === 0) {
             throw new Error('No products found in the form submission');
