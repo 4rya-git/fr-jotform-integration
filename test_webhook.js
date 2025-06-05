@@ -200,7 +200,8 @@ async function findOrCreateProduct(productName, price) {
         object.methodCall('execute_kw', [
             ODOO_DB, uid, ODOO_PASSWORD,
             'product.product', 'search_read',
-            [[['name', '=', productName]]],
+            // [[['name', '=', productName]]],
+            [[['name', '=', productName], ['list_price', '=', price]]],
             { fields: ['id'], limit: 1 }
         ], (err, result) => {
             if (err) return reject(err);
