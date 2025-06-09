@@ -304,7 +304,7 @@ app.post('/webhook', upload.none(), async (req, res) => {
         console.log(odooOrderLines);
 
         // Step 3: Create and confirm sale order
-        const saleOrderId = await createSaleOrder(customerId, odooOrderLines, customerNote, paymentTermId);
+        const saleOrderId = await createSaleOrder(customerId, odooOrderLines, customerNote);
         await confirmSaleOrder(saleOrderId);
 
         res.status(200).json({
