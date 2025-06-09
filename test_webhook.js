@@ -226,8 +226,23 @@ async function findOrCreateProduct(productName, price) {
     });
 }
 
+async function findPaymentTerm() {
+    return new Promise((resolve, reject) => {
+        object.methodCall('execute_kw', [
+            ODOO_DB, uid, ODOO_PASSWORD,
+            'account_payment_term', 'search',
+            [[['name', '=', '30 Days']]],
+        ], (err, paymentTermsIds) => {
+            if (err || !paymentTermsIds.length) {
+                return reject(new Error('Payment Term "30 Days" not found.'));
+            }
+            resolve(paymentTermsIds[0]); // Return the first matching payment term ID
+        });
+    });
+}
+
 // Helper function to create a sale order
-async function createSaleOrder(customerId, orderLines, note) {
+async function createSaleOrder(customerId, orderLines, note, paymentTermId) {
     return new Promise((resolve, reject) => {
         object.methodCall('execute_kw', [
             ODOO_DB, uid, ODOO_PASSWORD,
@@ -235,7 +250,8 @@ async function createSaleOrder(customerId, orderLines, note) {
             [{
                 partner_id: customerId,
                 order_line: orderLines,
-                note: note
+                note: note,
+                payment_term_id: paymentTermId,
             }]
         ], (err, id) => {
             if (err) return reject(err);
@@ -276,6 +292,7 @@ app.post('/webhook', upload.none(), async (req, res) => {
 
         // Step 1: Create or find the customer
         const customerId = await createOrFindCustomer(customerName, customerEmail, contactNumber, billing);
+        const paymentTermId = await findPaymentTerm();
 
         // Step 2: Format and create order lines
         const odooOrderLines = [];
@@ -301,7 +318,7 @@ app.post('/webhook', upload.none(), async (req, res) => {
         console.log(odooOrderLines);
 
         // Step 3: Create and confirm sale order
-        const saleOrderId = await createSaleOrder(customerId, odooOrderLines, customerNote);
+        const saleOrderId = await createSaleOrder(customerId, odooOrderLines, customerNote, paymentTermId);
         await confirmSaleOrder(saleOrderId);
 
         res.status(200).json({
