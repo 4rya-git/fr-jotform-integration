@@ -237,7 +237,7 @@ async function createSaleOrder(customerId, orderLines, note) {
             [{
                 partner_id: customerId,
                 order_line: orderLines,
-                note: note,
+                order_note: note,
                 payment_term_id: PAYMENT_TERM_30_DAYS,
             }]
         ], (err, id) => {
